@@ -1,0 +1,191 @@
+# -*- coding: utf-8 -*-
+"""
+Editor de Spyder
+
+Este es un archivo temporal
+"""
+
+
+##############################################################################
+### Librerías necesarias para este script ###
+##############################################################################
+
+import pandas as pd                      # Leer archivo CSV
+pd.core.common.is_list_like = pd.api.types.is_list_like
+from pandas_datareader import data as dr # Lector de datos
+import datetime                          # Manejo de fechas 
+import matplotlib.pyplot as plt          # Graficador
+import numpy as np                       # Análisis númerico
+import matplotlib as mpl
+
+from pandas import tseries
+from matplotlib import pyplot
+from pandas.plotting import lag_plot
+from pandas.plotting import autocorrelation_plot
+from statsmodels.graphics.tsaplots import plot_acf
+
+
+cred = pd.read_csv('conjunto.csv', parse_dates=['Date'])
+#CRED = pd.read_excel('CONJUNTO.xlsx', parse_dates=['Date'])
+
+cred.dtypes
+cred.head()
+cred = cred.sort_values(by='Date')
+index=cred.set_index('Date',inplace=True)
+#cred['credito'].plot(figsize=(10,8))
+data = pd.DataFrame(cred,index)
+cred['credito'].plot(figsize=(10,8))
+plt.plot(cred.iloc[1:149, 2], label='credito')
+dcredito = cred.apply(lambda x: x.shift(1))
+dcredito.head()
+plt.plot(dcredito)
+
+
+cred_adj = cred.iloc[1:149,2]
+dcredito_adj = dcredito.iloc[1:149,2]
+plt.plot(cred_adj, label = 'CREDITO')
+plt.plot(dcredito_adj, label = 'CREDITO Dif Logaritmicas')
+dcredito.plot()
+cred['Return'] = np.log(cred['credito']/cred['credito'].shift(1))
+cred[['credito', 'Return']].plot(subplots=True, style='b', figsize=(8, 5))
+lag_plot(cred['Return'])
+pyplot.show()
+df_corr = concat([cred['Return'].shift(1),cred['Return']], axis = 1)
+df_corr.columns = ['t-1','t+1']
+resultado = df_corr.corr()
+print(resultado)
+autocorrelation_plot(cred['Return'])
+pyplot.show()
+###CORRE CON EL MISMO ERROR###
+plot_acf(cred['Return'], lags=31)
+pyplot.show()
+
+
+
+####CORRE CON EL MISMO ERROR###
+
+##################
+# Filtros Kalman #
+##################
+
+
+# Preparacion de datos que se obtienen de la serie de tiempo
+
+mu = np.mean(cred['Return'])     # media de dcredito_adj
+sd = np.std(cred['Return'])      # desviacion estanar de dcreduito_adj
+sigma = np.var(cred['Return'])   # varianza de dcreditoc_adj
+size = len(cred['Return'])       # tamano del vector de dcredito_adj
+x = cred['Return'][0]            # primer valor del vector
+z_credito = np.random.normal(mu, sd, size)
+
+####SIGUE CORRIENDO CON EL MISMO ERROR Y  NO MUESTRA GRAFICOS DIFERENTES###
+
+
+# Preparacion de datos a estimar
+
+xhat = np.zeros(size)      # estimacion de x a posteri 
+P = np.zeros(size)         # estimacion de e a posteri 
+xhatminus = np.zeros(size) # estimacion de x a priori 
+Pminus = np.zeros(size)    # estimacion de e a priori 
+K = np.zeros(size)         # ganancia Kalman o blending factor
+xreal = np.zeros(size)     # un valor real de x
+z_est = np.zeros(size)     # una observacion de x
+
+
+Q = sigma                  # varianza de la serie de tiempo
+
+R = 0.1**2                 # estimacion de la varianza
+
+
+# Estimaciones iniciales
+xhat[0] = 0.0              # valor inicial del vector xhat
+P[0] = 0.176484                # valor inicial del vector P
+xreal[0]=x                 # valor inicial del vector xreal
+a=1.1                      # se asigna un valor inicial a
+
+
+###CORRE PERO NO CREO QUE GRAFIQUE LO QUE QUIERO###
+
+
+# Filtro Kalman Clasico
+for k in range(1,size):
+    # time update
+    xhatminus[k] = xhat[k-1]
+    Pminus[k] = P[k-1]+Q
+
+    # measurement update
+    K[k] = Pminus[k]/( Pminus[k]+R )
+    xhat[k] = xhatminus[k]+K[k]*(z_credito[k]-xhatminus[k])
+    P[k] = (1-K[k])*Pminus[k]
+
+
+# Grafico de Estimaciones Iniciales
+plt.figure()
+plt.plot(z_credito,'k+',label='estimacion ruido')
+plt.plot(xhat,'b-',label='estimacion a posteri')
+plt.axhline(x,color='g',label='valor inicial')
+plt.legend()
+plt.title('Estimacion vs. iteracion', fontweight='bold')
+plt.xlabel('Iteracion')
+plt.ylabel('Sigma')
+
+###CORRE CON EL MISMO ERROR Y GENERA EL MISMO GRAFICO###
+
+# Grafico de Estimaciones sobre la medida
+plt.figure()
+valid_iter = range(1,size) # Pminus not valid at step 0
+plt.plot(valid_iter,Pminus[valid_iter],label='a priori error estimate')
+plt.title('Estimated $\it{\mathbf{a \ priori}}$ error vs. iteration step', fontweight='bold')
+plt.xlabel('Iteration')
+plt.ylabel('$(sigma)^2$')
+plt.setp(plt.gca(),'ylim',[0,.01])
+plt.show()
+
+
+###CORRE MISMO ERROR Y GRAFICO##3
+
+# Filtro Kalman Vadim
+Pmax = max(P)
+
+xhat[0] = 0.0
+P[0] = 0.176484
+xreal[0]=x
+a=1.1
+
+for k in range(1,size):
+    # Real system
+    xreal[k] = a*xreal[k-1]
+    z_est[k] = xreal[k]+z_credito[k]
+    
+    # time update
+    xhatminus[k] = a*xhat[k-1]
+    Pminus[k] = a**2*P[k-1]+Q
+
+    # measurement update
+    K[k] = Pminus[k]/( Pminus[k]+R )
+    xhat[k] = xhatminus[k]+K[k]*(z_credito[k]-xhatminus[k])
+    P[k]=Pmax
+
+plt.plot(z_credito,'k+',label='noisy measurements')
+plt.plot(xhat,'b-',label='a posteri estimate')
+#plt.plot(xreal,'g-',label='real system')
+plt.legend()
+plt.title('Estimate vs. iteration step', fontweight='bold')
+plt.xlabel('Iteration')
+plt.ylabel('sigma')
+
+####FIN DEL CODIGO CORREO TODO COMPLETO PERO MARCA UN ERROR 
+###Y NO CREO QUE LOS GRAFICOS SEAN CORRECTOS Y QUE DESPLIEGUEN LO QUE DEBERIAN
+### NO SIENTO QUE LOS COMANDOS SE ESTEN EJECUTANDO Y SE REPRESENTEN 
+### EN LOS GRAFICOS
+
+
+
+
+
+
+
+
+
+
+
