@@ -4,80 +4,112 @@ Editor de Spyder
 
 Este es un archivo temporal
 """
-
-
 ##############################################################################
 ### Librerías necesarias para este script ###
 ##############################################################################
 
 import pandas as pd                      # Leer archivo CSV
-pd.core.common.is_list_like = pd.api.types.is_list_like
-from pandas_datareader import data as dr # Lector de datos
-import datetime                          # Manejo de fechas 
-import matplotlib.pyplot as plt          # Graficador
 import numpy as np                       # Análisis númerico
-import matplotlib as mpl
+import matplotlib.pyplot as plt          # Graficador
 
-from pandas import tseries
 from matplotlib import pyplot
 from pandas.plotting import lag_plot
 from pandas.plotting import autocorrelation_plot
 from statsmodels.graphics.tsaplots import plot_acf
 
+import seaborn as sns
+#%matplotlib inline
+sns.set()
 
-cred = pd.read_csv('conjunto.csv', parse_dates=['Date'])
-#CRED = pd.read_excel('CONJUNTO.xlsx', parse_dates=['Date'])
+df = pd.read_csv('conjunto.csv', skiprows=0)
+df.head()
+df.info()
 
-cred.dtypes
+df.set_index('Date', inplace=True)
+df.head()
+df.plot(figsize=(10,3), linewidth=3, fontsize=12)
+plt.xlabel('Year', fontsize=12);
+
+credito = df[['credito']]
+credito.plot(figsize=(10,3), linewidth=3, fontsize=12)
+plt.xlabel('Year', fontsize=12);
+
+df_rm = pd.concat([credito, credito.shift(1)], axis=1)
+df_rm.plot(figsize=(10,3), linewidth=3, fontsize=12)
+plt.xlabel('Year', fontsize=12);
+
+icap = df[['icap']]
+icap.rolling(12).mean().plot(figsize=(10,3), linewidth=3, fontsize=12)
+plt.xlabel('Year', fontsize=12);
+
+df_rm = pd.concat([icap.rolling(12).mean(), icap], axis=1)
+df_rm.plot(figsize=(10,3), linewidth=3, fontsize=12)
+plt.xlabel('Year', fontsize=12);
+
+df_dif = pd.concat([icap.diff(), icap], axis=1)
+df_dif.plot(figsize=(10,3), linewidth=3, fontsize=12)
+plt.xlabel('Year', fontsize=12);
+
+df_cred = pd.read_csv('conjunto.csv', parse_dates=['Date'])
+df_cred.head()
+cred = pd.DataFrame(data= df_cred)
 cred.head()
-cred = cred.sort_values(by='Date')
-index=cred.set_index('Date',inplace=True)
-#cred['credito'].plot(figsize=(10,8))
-data = pd.DataFrame(cred,index)
-cred['credito'].plot(figsize=(10,8))
-plt.plot(cred.iloc[1:149, 2], label='credito')
-dcredito = cred.apply(lambda x: x.shift(1))
-dcredito.head()
-plt.plot(dcredito)
 
-
-cred_adj = cred.iloc[1:149,2]
-dcredito_adj = dcredito.iloc[1:149,2]
-plt.plot(cred_adj, label = 'CREDITO')
-plt.plot(dcredito_adj, label = 'CREDITO Dif Logaritmicas')
-dcredito.plot()
 cred['Return'] = np.log(cred['credito']/cred['credito'].shift(1))
-cred[['credito', 'Return']].plot(subplots=True, style='b', figsize=(8, 5))
+Return=cred['Return']
+
 lag_plot(cred['Return'])
-pyplot.show()
-df_corr = concat([cred['Return'].shift(1),cred['Return']], axis = 1)
-df_corr.columns = ['t-1','t+1']
-resultado = df_corr.corr()
+
+Return.plot(figsize=(10,3), linewidth=3, fontsize=12)
+plt.xlabel('Year', fontsize=12);
+
+df_diference = pd.concat([Return.shift(1), Return], axis=1)
+df_diference.columns = ['t-1','t+1']
+resultado = df_diference.corr()
 print(resultado)
-autocorrelation_plot(cred['Return'])
-pyplot.show()
-###CORRE CON EL MISMO ERROR###
-plot_acf(cred['Return'], lags=31)
-pyplot.show()
+df_diference.plot(figsize=(10,3), linewidth=3, fontsize=12)
+plt.xlabel('Year', fontsize=12);
 
 
+autocorrelation_plot(Return)
 
-####CORRE CON EL MISMO ERROR###
+plot_acf(Return, lags=31)
+
+iris = pd.read_csv('conjunto.csv', parse_dates=['Date'])
+iris.head()
+df_iris = pd.DataFrame(data= iris)
+df_iris.head()
+
+df_iris.corr()
+
+sns.lmplot(x='icap', y='basemon', fit_reg=False, data=df_iris);
+sns.lmplot(x='icap', y='basemon', fit_reg=False, data=df_iris,hue='igae');
+
+df.diff().plot(figsize=(10,3), linewidth=3, fontsize=12)
+plt.xlabel('Year', fontsize=12);
+
+
+autocorrelation_plot(icap);
 
 ##################
 # Filtros Kalman #
 ##################
 
+Return=cred['credito']
 
 # Preparacion de datos que se obtienen de la serie de tiempo
 
-mu = np.mean(cred['Return'])     # media de dcredito_adj
-sd = np.std(cred['Return'])      # desviacion estanar de dcreduito_adj
-sigma = np.var(cred['Return'])   # varianza de dcreditoc_adj
-size = len(cred['Return'])       # tamano del vector de dcredito_adj
-x = cred['Return'][0]            # primer valor del vector
+mu = np.mean(Return)     # media de dcredito_adj
+sd = np.std(Return)      # desviacion estanar de dcreduito_adj
+sigma = np.var(Return)   # varianza de dcreditoc_adj
+size = len(Return)       # tamano del vector de dcredito_adj
+x = Return[0]            # primer valor del vector
 z_credito = np.random.normal(mu, sd, size)
-
+print(mu)
+print(sd)
+print(sigma)
+print(size)
+wait = input("PRESS ENTER TO CONTINUE.")
 ####SIGUE CORRIENDO CON EL MISMO ERROR Y  NO MUESTRA GRAFICOS DIFERENTES###
 
 
