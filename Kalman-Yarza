@@ -4,6 +4,8 @@ Editor de Spyder
 
 Este es un archivo temporal
 """
+#VERSIÓN OPTIMIZADA 06/11/18
+
 ##############################################################################
 ### Librerías necesarias para este script ###
 ##############################################################################
@@ -55,7 +57,7 @@ df_cred.head()
 cred = pd.DataFrame(data= df_cred)
 cred.head()
 
-cred['Return'] = np.log(cred['credito']/cred['credito'].shift(1))
+cred['Return'] = np.log(cred['icap']/cred['icap'].shift(1))
 Return=cred['Return']
 
 lag_plot(cred['Return'])
@@ -95,21 +97,20 @@ autocorrelation_plot(icap);
 # Filtros Kalman #
 ##################
 
-Return=cred['credito']
 
 # Preparacion de datos que se obtienen de la serie de tiempo
 
-mu = np.mean(Return)     # media de dcredito_adj
-sd = np.std(Return)      # desviacion estanar de dcreduito_adj
-sigma = np.var(Return)   # varianza de dcreditoc_adj
-size = len(Return)       # tamano del vector de dcredito_adj
-x = Return[0]            # primer valor del vector
+mu = np.mean(cred['Return'])     # media de dcredito_adj
+sd = np.std(cred['Return'])      # desviacion estanar de dcreduito_adj
+sigma = np.var(cred['Return'])   # varianza de dcreditoc_adj
+size = len(cred['Return'])       # tamano del vector de dcredito_adj
+x = cred['Return'][0]            # primer valor del vector
 z_credito = np.random.normal(mu, sd, size)
 print(mu)
 print(sd)
 print(sigma)
 print(size)
-wait = input("PRESS ENTER TO CONTINUE.")
+
 ####SIGUE CORRIENDO CON EL MISMO ERROR Y  NO MUESTRA GRAFICOS DIFERENTES###
 
 
@@ -153,7 +154,7 @@ for k in range(1,size):
 
 # Grafico de Estimaciones Iniciales
 plt.figure()
-plt.plot(z_credito,'k+',label='estimacion ruido')
+plt.plot(z_credito,'k*',label='estimacion ruido')
 plt.plot(xhat,'b-',label='estimacion a posteri')
 plt.axhline(x,color='g',label='valor inicial')
 plt.legend()
@@ -173,8 +174,6 @@ plt.ylabel('$(sigma)^2$')
 plt.setp(plt.gca(),'ylim',[0,.01])
 plt.show()
 
-
-###CORRE MISMO ERROR Y GRAFICO##3
 
 # Filtro Kalman Vadim
 Pmax = max(P)
@@ -198,22 +197,13 @@ for k in range(1,size):
     xhat[k] = xhatminus[k]+K[k]*(z_credito[k]-xhatminus[k])
     P[k]=Pmax
 
-plt.plot(z_credito,'k+',label='noisy measurements')
+plt.plot(z_credito,'k*',label='noisy measurements')
 plt.plot(xhat,'b-',label='a posteri estimate')
 #plt.plot(xreal,'g-',label='real system')
 plt.legend()
 plt.title('Estimate vs. iteration step', fontweight='bold')
 plt.xlabel('Iteration')
 plt.ylabel('sigma')
-
-####FIN DEL CODIGO CORREO TODO COMPLETO PERO MARCA UN ERROR 
-###Y NO CREO QUE LOS GRAFICOS SEAN CORRECTOS Y QUE DESPLIEGUEN LO QUE DEBERIAN
-### NO SIENTO QUE LOS COMANDOS SE ESTEN EJECUTANDO Y SE REPRESENTEN 
-### EN LOS GRAFICOS
-
-
-
-
 
 
 
