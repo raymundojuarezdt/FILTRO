@@ -1,1 +1,501 @@
 
+ESTOS CÓDIGOS ESTÁN DESARROLLADOS EN MATLAB Y EL OBJETIVO ES TRADUCIRLOS A PYTHON
+
+PROGRAMA UNO MATLAB MARIANA003
+%% PROGRAMA DESARROLLADO POR RAYMUNDO JUÁREZ
+% 25 DE AGOSTO DE 2017
+% VERSIÓN 002 DEL FILTRO DE BASIN 
+% PARA FUNCIÓN POLINÓMICA
+% DE GRADO TRES
+
+% LIMPIA VARIABLES, MEMORIA Y PANTALLA
+% ADEMÁS CIERRA TODAS LAS VENTANAS ABIERTAS
+clear all
+clc 
+close all
+
+%% ASIGNACIÓN DE VALORES NUMÉRICOS COSNTANTES
+T=0.01;
+
+% FILTRO DE BASIN
+Q =0;
+R = 1;
+P0 = [];
+x0 =0.99;
+
+P=1;
+n = 36;
+
+x = zeros(1,n);
+z = zeros(n,1);
+
+% RUIDO BLANCO
+w = 0.5*randn(n,1);
+
+
+%% SISTEMA FILTRO DE BASIN
+xs = @(xa) T+(1+T)*xa + (T/2)*xa^2+(T/6)*xa^3;
+%xs = @(xa) p*m+(1+q-p)*xa - (q/m)*xa^2;
+
+% CONDICIÓN INICIAL DEL SISTEMA
+x(:,1) = x0;
+z(1) = x0;
+
+% ITERACIONES PARA CONSTRUIR EL SISTEMA
+for k = 2:n
+    x(:,k) = xs(x(:,k-1));
+    z(k) = x(:,k) + w(k);
+end
+
+% GRAFICA DEL SISTEMA REAL
+t = 0:T:(n-1)*T;
+figure(1)
+plot(t, x(1,:),'-r')
+title('Real System')
+%axis([0,0.35,0.5,4])
+grid;
+legend('True Basin')
+
+
+% INICIALIZACIÓN DE VARIABLES DEL FILTRO DE BASIN
+xp = zeros(1,n);
+xc = zeros(1,n);
+Pp = zeros(1,1,n);
+Pc = zeros(1,1,n);
+
+%CONDICION INICIAL PARA FILTRO BASIN
+xc0 = -10.09;
+Pc0 = 1;
+xc(:,1) = xc0;
+Pc(:,:,1) = Pc0;
+
+% FUNCIÓN DEL FILTRO DE BASIN
+xe = @(xb,Pb) T+(1+T)*xb + (T/2)*xb^2+(T/6)*xb^3+(T/2)*Pb+(T/2)*xb*Pb;
+Pe = @(xb,Pb) (1+T)^2*Pb + 2*(1+T)*T*xb*Pb+(1+3*T/2)*T*Pb^2 + (1+2*T)*T*xb^2*Pb + ...
+    (5*T^2/12)*Pb^3 + T^2*xb^2*Pb^2 + (2*T^2/9)*xb^4*Pb + (2/3)*(1+T)*T*xb^4 + ...
+    2*T^2*xb*Pb^2 + T^2*xb^3*Pb;
+
+K = @(Pc) Pc*inv(R+Pc); 
+xo = @(xc,y,Pc) xc+K(Pc)*(y-xc);
+Po = @(Pc) (1-K(Pc))^2 * Pc+R*K(Pc)^2;
+
+
+%ITERACIÓN PRINCIPAL DEL FILTRO
+for k = 2:n
+    % Prediccion Basin
+    xp(:,k) = xe(xc(:,k-1),Pc(:,:,k-1));
+    Pp(:,:,k) = Pe(xc(:,k-1),Pc(:,:,k-1));
+       
+    % Correccion Basin
+    K1 = K(Pp(:,:,k));
+    xc(:,k) = xo(xp(:,k),z(k),Pp(:,:,k));
+    Pc(:,:,k) = Po(Pp(:,:,k));
+end
+
+%GRÁFICA DE SISTEMA REAL Y ESTADO ESTIMADO POR FILTRO DE BASIN
+t = 0:T:(n-1)*T;
+figure(2)
+plot(t, x(1,:),t, xc(1,:))
+%axis([0,0.35,-15,5])
+grid;
+title('Estimation')
+legend('True', 'Estimate')
+
+%GRÁFICA DE OBSERVACIONES
+figure(3)
+plot(t, z)
+%axis([0,0.35,0.5,4])
+grid;
+title('Observations')
+legend('Basin Obs')
+
+PROGRAMA DOS MATLAB MARIANA002
+
+%% PROGRAMA DESARROLLADO POR RAYMUNDO JUÁREZ
+% 25 DE AGOSTO DE 2017
+% VERSIÓN 002 DEL FILTRO DE KALMAN EXTENDIDO
+% PARA FUNCIÓN POLINÓMICA
+% DE GRADO TRES
+
+% LIMPIA VARIABLES, MEMORIA Y PANTALLA
+% ADEMÁS CIERRA TODAS LAS VENTANAS ABIERTAS
+clear all
+clc 
+close all
+
+%% ASIGNACIÓN DE VALORES NUMÉRICOS COSNTANTES
+T=0.01;
+
+Q =0;
+R = 1;
+P0 = [];
+x0 =0.99;
+
+% FILTRO DE KALMAN EXTENDIDO
+Qekf =0;
+Rekf = 1;
+P0ekf = [];
+x0ekf =0.99;
+
+P=1;
+n = 36;
+
+x = zeros(1,n);
+z = zeros(n,1);
+
+% RUIDO BLANCO
+w = 0.5*randn(n,1);
+
+
+%% SISTEMA
+xs = @(xa) T+(1+T)*xa + (T/2)*xa^2+(T/6)*xa^3;
+%xs = @(xa) p*m+(1+q-p)*xa - (q/m)*xa^2;
+
+% CONDICIÓN INICIAL DEL SISTEMA
+x(:,1) = x0;
+z(1) = x0;
+
+% ITERACIONES PARA CONSTRUIR EL SISTEMA
+for k = 2:n
+    x(:,k) = xs(x(:,k-1));
+    z(k) = x(:,k) + w(k);
+end
+
+% GRAFICA DEL SISTEMA REAL
+t = 0:T:(n-1)*T;
+figure(1)
+plot(t, x(1,:),'-r')
+title('Real System')
+%axis([0,0.35,0.5,4])
+grid;
+legend('True')
+
+
+% INICIALIZACIÓN DE VARIABLES DEL FILTRO DE KALMAN EXTENDIDO
+xpe = zeros(1,n);
+xco = zeros(1,n);
+Ppe = zeros(1,1,n);
+Pco = zeros(1,1,n);
+
+
+%CONDICION INICIAL PARA FILTRO KALMAN EXTENDIDO
+xco0 = -10.09;
+Pco0 = 1;
+xco(:,1) = xco0;
+Pco(:,:,1) = Pco0;
+
+%FUNCIÓN DEL FILTRO DE KALMAN EXTENDIDO
+xm = @(xd) T+(1+T)*xd + (T/2)*xd^2+(T/6)*xd^3;
+Pm = @(xd,Pd) (1+T)^2*Pd + 2*(1+T)*T*xd*Pd + (1+2*T)*T*xd^2*Pd + ...
+    T^2*xd^3*Pd+(T^2/4)*xd^4*Pd;
+
+Kk = @(Pf) Pf*inv(Rekf+Pf); 
+xM = @(xf,yf,Pf) xf+Kk(Pf)*(yf-xf);
+PM = @(Pf) (1-Kk(Pf))^2 * Pf+Rekf*Kk(Pf)^2;
+
+% ITERACIÓN PRINCIPAL DEL FILTRO
+for k = 2:n
+    % Prediccion Kalman Extendido
+    xpe(:,k) = xm(xco(:,k-1));
+    Ppe(:,:,k) = Pm(xco(:,k-1),Pco(:,:,k-1));
+    
+    % Correccion Kalman Extendido
+    Kekf = Kk(Ppe(:,:,k));
+    xco(:,k) = xM(xpe(:,k),z(k),Ppe(:,:,k));
+    Pco(:,:,k) = PM(Ppe(:,:,k));
+end
+
+%GRÁFICA DE SISTEMA REAL Y ESTADO ESTIMADO POR FILTRO DE BASIN
+t = 0:T:(n-1)*T;
+figure(2)
+plot(t, x(1,:),t, xco(1,:))
+%axis([0,0.35,-15,5])
+grid;
+title('Estimation')
+legend('True','Estimate EKF')
+
+%GRÁFICA DE OBSERVACIONES
+figure(3)
+plot(t, z)
+%axis([0,0.35,0.5,4])
+grid;
+title('Observations')
+legend('Kalman Extended Observations')
+
+PROGRAMA TRES MATLAB MARIANA001
+
+%% HOLA
+% PROGRAMA DESARROLLADO POR RAYMUNDO JUÁREZ
+% 27 DE JULIO DE 2017
+% VERSIÓN 001 DEL FILTRO DE BASIN
+
+clear all
+clc 
+close all
+
+%% VALORES NUMÉRICOS
+T=0.01;
+
+% F = [1 1;0 1];
+% H = [1 0];
+% G = [0.5; 1];
+% g = 1;
+ Q =0;
+ R = 1;
+P0 = [];
+x0 =0.99;
+
+Qekf =0;
+Rekf = 1;
+P0ekf = [];
+x0ekf =0.99;
+P=1;
+n = 36;
+%u = -g;
+
+x = zeros(1,n);
+z = zeros(n,1);
+w = 0.5*randn(n,1);
+
+
+%SISTEMA ILTRO BASIN
+xs = @(xa) T+(1+T)*xa + (T/2)*xa^2+(T/6)*xa^3;
+
+%xs = @(xa) p*m+(1+q-p)*xa - (q/m)*xa^2;
+
+
+%CONDICIÓN INICIAL
+x(:,1) = x0;
+z(1) = x0;
+
+
+%ITERACIONES PARA CONSTRUIR EL SISTEMA
+for k = 2:n
+    x(:,k) = xs(x(:,k-1));
+    z(k) = x(:,k) + w(k);
+    
+    
+end
+
+%GRAFICAR EL SISTEMA REAL
+t = 0:T:(n-1)*T;
+figure(1)
+plot(t, x(1,:),'-r')
+title('Real System')
+axis([0,0.35,0.5,4])
+grid;
+legend('True Basin')
+
+
+%VARIABLES DEL FILTRO DE BASIN
+xp = zeros(1,n);
+xc = zeros(1,n);
+Pp = zeros(1,1,n);
+Pc = zeros(1,1,n);
+
+xpe = zeros(1,n);
+xco = zeros(1,n);
+Ppe = zeros(1,1,n);
+Pco = zeros(1,1,n);
+
+%CONDICION INICIAL PARA FILTRO BASIN
+xc0 = -10.09;
+Pc0 = 1;
+xc(:,1) = xc0;
+Pc(:,:,1) = Pc0;
+
+xco0 = -10.09;
+Pco0 = 1;
+xco(:,1) = xco0;
+Pco(:,:,1) = Pco0;
+
+%FUNCIÓN DEL FILTRO DE BASIN
+xe = @(xb,Pb) T+(1+T)*xb + (T/2)*xb^2+(T/6)*xb^3+(T/2)*Pb+(T/2)*xb*Pb;
+Pe = @(xb,Pb) (1+T)^2*Pb + 2*(1+T)*T*xb*Pb+(1+3*T/2)*T*Pb^2 + (1+2*T)*T*xb^2*Pb + ...
+    (5*T^2/12)*Pb^3 + T^2*xb^2*Pb^2 + (2*T^2/9)*xb^4*Pb + (2/3)*(1+T)*T*xb^4 + ...
+    2*T^2*xb*Pb^2 + T^2*xb^3*Pb;
+
+K = @(Pc) Pc*inv(R+Pc); 
+xo = @(xc,y,Pc) xc+K(Pc)*(y-xc);
+Po = @(Pc) (1-K(Pc))^2 * Pc+R*K(Pc)^2;
+
+%FUNCIÓN DEL FILTRO DE EKF
+xm = @(xd) T+(1+T)*xd + (T/2)*xd^2+(T/6)*xd^3;
+Pm = @(xd,Pd) (1+T)^2*Pd + 2*(1+T)*T*xd*Pd + (1+2*T)*T*xd^2*Pd + ...
+    T^2*xd^3*Pd+(T^2/4)*xd^4*Pd;
+
+Kk = @(Pf) Pf*inv(Rekf+Pf); 
+xM = @(xf,yf,Pf) xf+K(Pf)*(yf-xf);
+PM = @(Pf) (1-K(Pf))^2 * Pf+Rekf*K(Pf)^2;
+
+
+
+%ITERACIÓN PRINCIPAL DEL FILTRO
+for k = 2:n
+    % Prediccion
+    xp(:,k) = xe(xc(:,k-1),Pc(:,:,k-1));
+    Pp(:,:,k) = Pe(xc(:,k-1),Pc(:,:,k-1));
+    
+    xpe(:,k) = xm(xco(:,k-1));
+    Ppe(:,:,k) = Pm(xco(:,k-1),Pco(:,:,k-1));
+    
+    % Correccion
+    
+    K1 = K(Pp(:,:,k));
+    xc(:,k) = xo(xp(:,k),z(k),Pp(:,:,k));
+    Pc(:,:,k) = Po(Pp(:,:,k));
+    
+    Kekf = Kk(Ppe(:,:,k));
+    xco(:,k) = xM(xpe(:,k),z(k),Ppe(:,:,k));
+    Pco(:,:,k) = PM(Ppe(:,:,k));
+end
+%grafica finales
+t = 0:T:(n-1)*T;
+figure(2)
+plot(t, x(1,:),t, xc(1,:),t, xco(1,:))
+axis([0,0.35,-15,5])
+grid;
+title('Estimation')
+legend('True', 'Estimate','Estimate EKF')
+
+figure(3)
+plot(t, z)
+axis([0,0.35,0.5,4])
+grid;
+title('Observations')
+legend('Basin Obs')
+
+PROGRAMA CUATRO MATLAB KALMAN001
+
+clear all
+clc
+global A B C G V W L Y n
+
+n=1;
+A=[-4 2;-2 -4]; B=[0;1]; C=[1,0]; G=[1;-1]; V=0.09; W=0.025;
+
+[t,p]=ode45(@Ej_Kal,[0 10],[0.1 0 0.1]);
+
+p=double(p);
+S1=size(p);
+
+for j=1:S1(1)
+    
+P=[p(j,1) p(j,2);p(j,2) p(j,3)]
+L=P*C'*inv(W*rand(1))
+
+
+[T,x]=ode45(@K_Real,[0 10],[0.5 -0.5]);
+figure (1)
+plot(T,x(:,1),'--',T,x(:,2),'--')
+grid
+title('Real solution');
+xlabel('Time t');
+ylabel('Solution x');
+legend('x_1','x_2');
+
+S2=size(x);
+
+for i=1:S2(1)
+
+Y=C*[x(i,1);x(i,2)]+W*rand(1);
+
+
+[Te,xe]=ode45(@K_Estima,[0 10],[0.5 -0.5]);
+
+end
+
+end
+
+PROGRAMA CINCO MATLAB K_REAL
+
+function dx=K_Real(T,x)
+global A B C G V W L
+
+dx = zeros(2,1); % un vector columna
+X=[x(1);x(2)];
+u=1;
+dx=A*X + B*u +G*V*rand(1);
+end
+
+PROGRAMA SEIS MATLAB K_ESTIMA
+
+function dxe=K_Estima(Te,xe)
+global A B C G V W L Y
+
+dxe = zeros(2,1); % un vector columna
+X=[xe(1);xe(2)];
+u=1;
+dxe=A*X + B*u +L*(Y-C*X);
+end
+
+PROGRAMA SIETE MATLAB EJEMPLOKALMAN
+
+F = [1 1; 0 1];
+H = [1 0];
+G = [0.5; 1];
+g = 1;
+
+Q = [0 0;0 0];
+R = 1;
+
+P0 = [];
+x0 = [100; 0];
+
+n = 6;
+u = -g;
+
+x = zeros(2,n);
+z = zeros(n,1);
+w = 0.5*randn(n,1);
+
+xs = @(xa) F*xa + G*u';
+
+x(:,1) = x0;
+for k = 2:n
+    x(:,k) = xs(x(:,k-1))
+    z(k) = H*x(:,k) + w(k)
+end
+
+xp = zeros(2,n);
+xc = zeros(2,n);
+
+Pp = zeros(2,2,n);
+Pc = zeros(2,2,n);
+
+xc0 = [95; 1];
+Pc0 = [10 0;0 1];
+
+xc(:,1) = xc0;
+Pc(:,:,1) = Pc0;
+
+for k = 2:n
+    % Prediccion
+    xp(:,k) = F*xc(:,k-1) + G*u;
+    Pp(:,:,k) = F*Pc(:,:,k-1)*F' + Q;
+    
+    % Correccion
+    S = H*Pp(:,:,k)*H' + R;
+    K = Pp(:,:,k)*H'*inv(S);
+    xc(:,k) = xp(:,k) + K*(z(k) - H*xp(:,k));
+    Pc(:,:,k) = Pp(:,:,k) - K*S*K';
+end
+
+t = 1:6;
+plot(t, x(1,:), t, z, t, xc(1,:))
+axis([1,6,85,101])
+grid;
+legend('True', 'Measurement','Estimate')
+
+PROGRAMA OCHO MATLAB EJ_KAL
+
+function dp=Ej_Kal(t,p)
+global A B C G V W L
+
+dp = zeros(3,1); % un vector columna
+P=[p(1),p(2);p(2),p(3)];
+DP=A*P + P*A' - P*C'*inv(W*rand(1))*C*P + G*V*rand(1)*G';
+dp(1)=DP(1,1);
+dp(2)=DP(1,2);
+dp(3)=DP(2,2);
+end
