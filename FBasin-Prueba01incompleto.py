@@ -1,15 +1,10 @@
-
-
-PROGRAMA INICIAL EN PYTHON QUE REALIZA LA MISMA TAREA QUE LOS ANTERIORES (INCOMPLETO)
-AUTOR: ARTURO GIL GARCÍA
-
-"""***************************************************************************
-*                        Filtro de Kalman Extendido                          *
-* Versión: 1.0                                                               *
-* Autor: Arturo Enrique Gil García                                           *
-* Fecha: 07/Marzo/2018                                                       *
-* Notas: Hasta el momento solo sirve mostrar el sistema con y sin ruido
-****************************************************************************"""
+#"""***************************************************************************
+#*                        Filtro de Kalman Extendido                          *
+#* Versión: 1.0                                                               *
+#* Autor: Arturo Enrique Gil García                                           *
+#* Fecha: 07/Marzo/2018                                                       *
+#* Notas: Hasta el momento solo sirve mostrar el sistema con y sin ruido
+#****************************************************************************"""
 # Librerías útiles
 #import scipy # scientific library
 import numpy as np # math library se usa para usar arreglos de matrices
