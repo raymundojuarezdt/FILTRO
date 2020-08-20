@@ -10,13 +10,14 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import scipy.linalg as la
 from filterpy.common import Q_discrete_white_noise
+#from filterpy.kalman import kfilter
 
 
 # RUIDO PARA OBSERVACIONES
-mu1, sigma1 = 0, 0.1
-Rui = np.random.normal(mu1, sigma1, [2,98]) 
-#lamb1=0
-#Rui = np.random.poisson(lamb1, [2,98]) 
+#mu1, sigma1 = 0, 1
+#Rui = np.random.normal(mu1, sigma1, [2,98]) 
+lamb1=1
+Rui = np.random.weibull(lamb1, [2,98]) 
 
 # ESTAS LÍNEAS DE CÓDIGO SON PARA LLAMAR AL ARCHIVO EN EXCEL-SCV QUE CONTIENE
 # LAS SERIES DE TIEMPO QUE VAMOS A ANALIZAR
@@ -61,7 +62,9 @@ A = np.array([
     [0, 0, 1, 1],
     [0, 0, 0, 1],
     ])
-Q = Q_discrete_white_noise(dim=4, dt=1., var=2.35)
+#lamb2=2
+#Q = np.random.weibull(lamb2, [4,4]) 
+Q = Q_discrete_white_noise(dim=4, dt=1., var=0.1)
 #Q =  np.array([
 #    [1, 1, 0, 0],
 #    [0, 1, 0, 0],
