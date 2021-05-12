@@ -1,0 +1,178 @@
+import numpy as np
+from numpy import pi, cos, sin, sqrt, diag
+from numpy.linalg import inv
+import matplotlib.pyplot as plt
+import pandas as pd
+import scipy.linalg as la
+from filterpy.common import Q_discrete_white_noise
+#from filterpy.kalman import kfilter
+
+
+# RUIDO PARA OBSERVACIONES
+#mu1, sigma1 = 0, 1
+#Rui = np.random.normal(mu1, sigma1, [2,98]) 
+lamb1=1
+Rui = np.random.weibull(lamb1, [2,98]) 
+
+# ESTAS LÍNEAS DE CÓDIGO SON PARA LLAMAR AL ARCHIVO EN EXCEL-SCV QUE CONTIENE
+# LAS SERIES DE TIEMPO QUE VAMOS A ANALIZAR
+
+z = pd.read_csv('fatalities.csv', delimiter=',')
+z1 =[x for x in z.LogDeaths]
+z1 = np.array(z1)
+count1=len(z1)
+z2=[x for x in z.LogVKMT]
+z2= np.array(z2)
+dat=[x for x in z.Date]
+dat= np.array(dat)
+Y=np.array([z2[0],z1[0]])
+
+# ESTAS LÍNEAS DE CÓDIGO SON PARA LLAMAR AL ARCHIVO EN EXCEL-SCV QUE CONTIENE
+# LAS SERIES DE TIEMPO DEL MODELO ECONOMÉTRICO REALIZADO EN EVIEWS Y SE USARÁ
+# PARA GENERAR LOS DATOS DEL VECTOR ACTUAL
+
+w = pd.read_csv('Fatalities2.csv', delimiter=',')
+w1 =[x for x in w.SV1F]
+w1 = np.array(w1)
+count2=len(w1)
+w2=[x for x in w.SV2F]
+w2= np.array(w2)
+w3=[x for x in w.SV3F]
+w3= np.array(w3)
+w4=[x for x in w.SV4F]
+w4= np.array(w4)
+alfa=np.array([w1[0],w2[0],w3[0],w4[0]])
+step=np.array([0.01, 0.01, 0.01, 0.01])
+
+# DECLARACIÓN DE VARIABLES, INICIALIZACIÓN, ASIGNACIÓN DE VALORES
+
+# allocate identity matrix for re-use
+x_init = np.array(alfa)
+y_init = np.array(Y)
+
+# Matrix definitions
+A = np.array([
+    [1, 1, 0, 0],
+    [0, 1, 0, 0],
+    [0, 0, 1, 1],
+    [0, 0, 0, 1],
+    ])
+#lamb2=2
+#Q = np.random.weibull(lamb2, [4,4]) 
+Q = Q_discrete_white_noise(dim=4, dt=1., var=0.1)
+#Q =  np.array([
+#    [1, 1, 0, 0],
+#    [0, 1, 0, 0],
+#    [0, 0, 1, 1],
+#    [0, 0, 0, 1],
+#    ])
+H = np.array([
+    [1, 0, 0, 0],
+    [1, 0, 1, 0],
+    ])
+
+R=Q_discrete_white_noise(dim=2, dt=1., var=0)
+P_init = 0.01 * np.eye(len(x_init))  # small initial prediction error
+
+
+# create an observation vector of noisy GPS signals
+observations = np.array([z2, z1]).T+Rui.T
+
+# matrix dimensions
+nx = Q.shape[0]
+ny = R.shape[0]     
+nt = observations.shape[0]
+
+# allocate identity matrix for re-use
+Inx = np.eye(nx)
+
+# allocate result matrices
+x_pred = np.zeros((nt, nx))      # prediction of state vector
+xpredmax = np.zeros((nt, nx))      # prediction of state vector
+P_pred = np.zeros((nt, nx, nx))  # prediction error covariance matrix
+Ppredmax = np.zeros((nt, nx, nx))  # prediction error covariance matrix
+x_est = np.zeros((nt, nx))       # estimation of state vector
+xestmax = np.zeros((nt, nx))       # estimation of state vector
+P_est = np.zeros((nt, nx, nx))   # estimation error covariance matrix
+Pestmax = np.zeros((nt, nx, nx))   # estimation error covariance matrix
+Pmax = np.zeros((nt, nx, nx))   # estimation error covariance matrix
+K = np.zeros((nt, nx, ny))       # Kalman Gain
+Kmax = np.zeros((nt, nx, ny))       # Kalman Gain
+
+x_actual = np.zeros((nt, nx))      # prediction of state vector
+y_actual = np.zeros((nt, ny))       # estimation of state vector
+alfa_gps = np.zeros((nt, nx)) 
+y_gp = np.zeros((nt, ny))       # estimation of state vector
+xx_actual = np.zeros((nt, nx))      # prediction of state vector
+
+
+# set initial prediction
+x_pred[0] = x_init
+xpredmax[0] = x_init
+P_pred[0] = P_init
+Ppredmax[0] = P_init
+x_actual[0]=x_init
+alfa_gps[0]=x_init
+y_actual[0] = y_init
+y_gp[0] = y_init
+xx_actual[0]=x_init
+B=0
+jmax=0
+
+# for each time-step...
+for i in range(nt):
+    
+    # prediction stage
+    if i > 0:
+        alfa_gps[i]=np.array([w1[i],w2[i],w3[i],w4[i]])
+        y_gp[i]=np.array([z1[i],z2[i]])
+        xx_actual[i] = xx_actual[i-1]
+        x_actual[i] = A @ alfa_gps[i-1]
+        y_actual[i] = H @ alfa_gps[i-1]
+        x_pred[i] = A @ x_est[i-1]
+        P_pred[i] = A @ P_est[i-1] @ A.T + Q 
+    # estimation stage
+    y_obs = observations[i] 
+    K[i] = P_pred[i] @ H.T @ inv((H @ P_pred[i] @ H.T) + R)
+    x_est[i] = x_pred[i] + K[i] @ (y_obs - H @ x_pred[i])
+    P_est[i] = (Inx - K[i] @ H) @ P_pred[i]
+    EigP=la.eig(P_est[i])
+    sumEigP=np.sum(EigP[0])
+
+    if sumEigP>B:
+        B=sumEigP
+        jmax=jmax+1
+        kmax=i
+        Pmax[jmax+1]=P_est[i]
+
+for i in range(nt):
+    
+    # prediction stage
+    if i > 0:
+        xpredmax[i] = A @ xestmax[i-1]
+        Ppredmax[i] = A @ Pestmax[i-1] @ A.T + Q 
+    # estimation stage
+    y_obs = observations[i]
+    Kmax[i] = Ppredmax[i] @ H.T @ inv((H @ Ppredmax[i] @ H.T) + R)
+    xestmax[i] = xpredmax[i] + Kmax[i] @ (y_obs - H @ xpredmax[i])
+    Pestmax[i] = Pmax[jmax+1]
+    
+
+
+# ESTAS LÍNEAS SON DEL FK APLICADO A UNA SERIE DE TIEMPO
+
+plt.figure(1)
+#plt.plot(x_est[:, 0], x_est[:, 3], linestyle="-", color="k")
+plt.plot(dat, xestmax[:,0], linestyle="--", color="k", label='FK-Vadim Log(VHKM) x 10^9')
+plt.plot(dat, xestmax[:,0]+ xestmax[:,2], linestyle="--", color="r", label='FK-Vadim Log(Deaths)')
+plt.plot(dat, x_est[:,0], linestyle="-", color="b", label='FK Log(VHKM) x 10^9')
+plt.plot(dat, x_est[:,0]+ x_est[:,2], linestyle="-", color="g", label='FK Log(Deaths)')
+plt.plot(dat, y_actual[:,0], linestyle="-", color="c", label='Actual Log(VHKM) x 10^9')
+plt.plot(dat, y_actual[:,1], linestyle="-", color="y", label='Actual Log(Deaths)')
+plt.scatter(dat, observations[:,0], color="k", label='Obs of the Log(VHKM) x 10^9')
+plt.scatter(dat, observations[:,1], color="r", label='Obs of the Log(Deaths)')
+plt.xlabel('Time')
+plt.ylabel('Position')
+plt.title('Kalman Filter Aplication')
+plt.legend(loc=0)
+plt.show()
